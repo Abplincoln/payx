@@ -55,4 +55,5 @@ export interface VerificationResult {
   transactionHash: string | null;
   network: string;
   verified: boolean;
+  isDemo?: boolean;
 }

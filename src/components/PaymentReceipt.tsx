@@ -1,8 +1,10 @@
-import { CheckCircle2, Copy } from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import type { Payment } from '@/types';
-import { formatDate, formatBOT, formatTxHash } from '@/utils/format';
+import { formatDate, formatBOT } from '@/utils/format';
 import { Card } from '@/components/ui/Card';
+import { useWallet } from '@/context/WalletContext';
+import { getExplorerTxUrl } from '@/config/network';
 
 interface PaymentReceiptProps {
   payment: Payment;
@@ -12,6 +14,7 @@ interface PaymentReceiptProps {
 
 export function PaymentReceipt({ payment, billId, showDemoLabel = true }: PaymentReceiptProps) {
   const [copied, setCopied] = useState(false);
+  const { networkKey } = useWallet();
 
   const copyHash = () => {
     navigator.clipboard.writeText(payment.transactionHash);
@@ -65,6 +68,15 @@ export function PaymentReceipt({ payment, billId, showDemoLabel = true }: Paymen
             <code className="flex-1 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono break-all">
               {payment.transactionHash}
             </code>
+            <a
+              href={getExplorerTxUrl(payment.transactionHash, payment.network || networkKey)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 p-2 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              title="View on Explorer"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
             <button
               onClick={copyHash}
               className="shrink-0 p-2 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"

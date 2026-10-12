@@ -11,8 +11,11 @@ import {
   X,
   LogOut,
   HeartPulse,
+  Wallet,
 } from 'lucide-react';
 import { useRole } from '@/context/RoleContext';
+import { useWallet } from '@/context/WalletContext';
+import { formatWallet } from '@/utils/format';
 import type { UserRole } from '@/types';
 
 interface NavItem {
@@ -41,6 +44,7 @@ const navConfig: Record<UserRole, NavItem[]> = {
 
 export function DashboardLayout() {
   const { role, setRole } = useRole();
+  const { account, chainId, network, networkKey, switchNetwork, connect, isConnecting, isChainMismatch } = useWallet();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -120,11 +124,52 @@ export function DashboardLayout() {
               <span className="text-xs text-gray-400">·</span>
               <span className="text-xs text-gray-400">Demo Mode</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
-                <span className="inline-block w-2 h-2 rounded-full bg-accent-500" />
-                BotChain Testnet
-              </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Network badge with click-to-switch */}
+              <button
+                type="button"
+                onClick={() => switchNetwork(networkKey === 'mainnet' ? 'testnet' : 'mainnet')}
+                title={`Active: ${network.name}. Click to switch to ${networkKey === 'mainnet' ? 'BotChain Testnet' : 'BOT Chain Mainnet'}`}
+                className="hidden sm:flex items-center gap-1.5 text-xs text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md px-2.5 py-1.5 transition-colors cursor-pointer"
+              >
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    networkKey === 'mainnet' ? 'bg-success-500' : 'bg-amber-500'
+                  }`}
+                />
+                <span className="font-medium">{network.name}</span>
+              </button>
+
+              {/* Wallet connection status */}
+              {account ? (
+                isChainMismatch ? (
+                  <button
+                    type="button"
+                    onClick={() => switchNetwork(networkKey)}
+                    title={`Wallet is on Chain ${chainId}. Click to switch to ${network.name} (Chain ${network.chainId})`}
+                    className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md px-2.5 py-1.5 transition-colors cursor-pointer"
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Wrong Network ({chainId})</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-success-500" />
+                    <span className="font-mono">{formatWallet(account)}</span>
+                  </div>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={connect}
+                  disabled={isConnecting}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-md px-2.5 py-1.5 transition-colors"
+                >
+                  <Wallet className="h-3.5 w-3.5" />
+                  <span>{isConnecting ? 'Connecting…' : 'Connect Wallet'}</span>
+                </button>
+              )}
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors"

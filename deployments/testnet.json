@@ -1,0 +1,9 @@
+{
+  "network": "BotChain Testnet",
+  "chainId": 968,
+  "rpcUrl": "https://rpc.bohr.life",
+  "contractName": "MedicalBilling",
+  "contractAddress": "0x2cf74124E586b8Cb292AFB3F2A579AfB89EEF493",
+  "deployedAt": "2026-09-29T12:53:00.000Z",
+  "status": "deployed"
+}

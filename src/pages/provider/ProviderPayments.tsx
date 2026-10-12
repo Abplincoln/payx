@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/State';
 import { Button } from '@/components/ui/Button';
-import { DEMO_PAYMENTS, DEMO_BILLS } from '@/data/mockData';
+import { DEMO_PAYMENTS } from '@/data/mockData';
 import { formatDate, formatBOT, formatTxHash } from '@/utils/format';
 import { Eye, Inbox } from 'lucide-react';
 

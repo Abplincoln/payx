@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { BillTable } from '@/components/BillTable';
 import { EmptyState } from '@/components/ui/State';
 import { Input } from '@/components/ui/Input';

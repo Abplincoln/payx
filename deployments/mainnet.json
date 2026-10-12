@@ -1,0 +1,15 @@
+{
+  "network": "BOT Chain Mainnet",
+  "chainId": 677,
+  "rpcUrl": "https://rpc.botchain.ai",
+  "explorerUrl": "https://scan.botchain.ai",
+  "contractName": "MedicalBilling",
+  "contractAddress": "0x545B697201cB19DdFF7d68FBd60158dc454aaef7",
+  "transactionHash": "0xbfd97be2e58298d34ef75c9be3a94c419664c585e40ee021663205e0cbb672ef",
+  "blockNumber": 26326148,
+  "deployerAddress": "0x4093dAfCC3f60B5491C6Cd694f07F03fDA86919a",
+  "deployedAt": "2026-10-11T14:30:26.427Z",
+  "status": "deployed",
+  "verified": true,
+  "verifiedUrl": "https://scan.botchain.ai/address/0x545B697201cB19DdFF7d68FBd60158dc454aaef7#code"
+}

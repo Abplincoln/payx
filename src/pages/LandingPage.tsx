@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { HeartPulse, ShieldCheck, ArrowRight, FileText, Search, Wallet, CheckCircle2 } from 'lucide-react';
 import { useRole } from '@/context/RoleContext';
+import { useWallet } from '@/context/WalletContext';
 import { Button } from '@/components/ui/Button';
 
 export function LandingPage() {
   const navigate = useNavigate();
   const { setRole } = useRole();
+  const { network, networkKey } = useWallet();
 
   const selectRole = (role: 'provider' | 'patient') => {
     setRole(role);
@@ -24,8 +26,12 @@ export function LandingPage() {
             <span className="text-lg font-bold text-gray-900 tracking-tight">PayX</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
-            <span className="inline-block w-2 h-2 rounded-full bg-accent-500" />
-            BotChain Testnet
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                networkKey === 'mainnet' ? 'bg-success-500' : 'bg-accent-500'
+              }`}
+            />
+            {network.name}
           </div>
         </div>
       </nav>
@@ -95,13 +101,13 @@ export function LandingPage() {
 
       {/* Disclaimer */}
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs text-amber-800 leading-relaxed">
-            <strong>Demo application.</strong> Uses testnet data and does not process real medical records or real-world payments.
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <p className="text-xs text-gray-700 leading-relaxed">
+            <strong>Network:</strong> Connected to <strong>{network.name}</strong> (Chain ID: {network.chainId}).
           </p>
         </div>
         <p className="mt-4 text-center text-xs text-gray-400">
-          PayX — Medical billing and payment, verified on-chain. Built on BotChain Testnet.
+          PayX — Medical billing and payment, verified on-chain. Built on {network.name}.
         </p>
       </footer>
     </div>

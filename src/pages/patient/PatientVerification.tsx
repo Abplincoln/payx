@@ -8,11 +8,14 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { formatDate, formatBOT } from '@/utils/format';
 import { DEMO_BILLS, DEMO_PATIENT } from '@/data/mockData';
 import type { VerificationResult } from '@/types';
-import { Search, ShieldCheck, CheckCircle2, FileText } from 'lucide-react';
+import { useWallet } from '@/context/WalletContext';
+import { getExplorerTxUrl } from '@/config/network';
+import { Search, ShieldCheck, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
 
 type State = 'idle' | 'loading' | 'result' | 'notfound';
 
 export function PatientVerification() {
+  const { network, networkKey } = useWallet();
   const [billId, setBillId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<State>('idle');
@@ -44,7 +47,7 @@ export function PatientVerification() {
           patientWalletAddress: bill.patientWalletAddress,
           paymentDate: bill.paymentDate,
           transactionHash: bill.transactionHash,
-          network: 'BotChain Testnet',
+          network: network.name,
           verified: true,
         });
         setState('result');
@@ -59,7 +62,7 @@ export function PatientVerification() {
           patientWalletAddress: bill.patientWalletAddress,
           paymentDate: bill.paymentDate,
           transactionHash: bill.transactionHash,
-          network: 'BotChain Testnet',
+          network: network.name,
           verified: false,
         });
         setState('result');
@@ -73,7 +76,7 @@ export function PatientVerification() {
     <div>
       <PageHeader
         title="Verification"
-        description="Verify the payment status of your bills on the BotChain Testnet."
+        description={`Verify the payment status of your bills on ${network.name}.`}
       />
 
       <Card className="max-w-2xl">
@@ -112,7 +115,7 @@ export function PatientVerification() {
 
         {state === 'loading' && (
           <Card>
-            <LoadingState title="Checking BotChain Testnet…" />
+            <LoadingState title={`Checking ${network.name}…`} />
           </Card>
         )}
 
@@ -178,16 +181,29 @@ export function PatientVerification() {
               {result.transactionHash && (
                 <div className="mt-5 pt-5 border-t border-gray-100">
                   <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">Transaction Hash</dt>
-                  <dd className="mt-1.5">
-                    <code className="block text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono break-all">
+                  <dd className="mt-1.5 flex items-center gap-2">
+                    <code className="flex-1 block text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono break-all">
                       {result.transactionHash}
                     </code>
+                    <a
+                      href={getExplorerTxUrl(result.transactionHash, result.network || networkKey)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 p-2 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                      title="View on Explorer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
                   </dd>
                 </div>
               )}
 
               <div className="mt-5 pt-5 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
-                <span className="inline-block w-2 h-2 rounded-full bg-accent-500" />
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    networkKey === 'mainnet' ? 'bg-success-500' : 'bg-accent-500'
+                  }`}
+                />
                 {result.network}
               </div>
             </div>
