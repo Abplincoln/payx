@@ -12,6 +12,7 @@ import { switchOrAddEthereumNetwork, connectMetaMask } from '@/lib/contracts';
 interface WalletContextValue {
   account: string | null;
   chainId: number | null;
+  connectedNetwork?: NetworkConfig;
   networkKey: NetworkKey;
   network: NetworkConfig;
   isConnecting: boolean;
@@ -59,13 +60,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     clearError();
     try {
-      const res = await connectMetaMask(activeNetwork);
-      setAccount(res.address);
-      setChainId(res.chainId);
-      // Auto-sync networkKey if MetaMask returned a known chain
-      const matched = getNetworkByChainId(res.chainId);
-      if (matched) {
-        setNetworkKey(matched.id);
+      if (typeof window === 'undefined' || !window.ethereum) {
+        throw new Error('MetaMask or Web3 wallet is not installed.');
+      }
+      const accounts = await window.ethereum.request<string[]>({
+        method: 'eth_requestAccounts',
+      });
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts selected in wallet.');
+      }
+      setAccount(accounts[0]);
+
+      const chainHex = await window.ethereum.request<string>({ method: 'eth_chainId' });
+      const currentChainId = chainHex ? parseInt(chainHex, 16) : null;
+      setChainId(currentChainId);
+
+      // Prompt wallet to align with active application network if currently on a different chain
+      if (currentChainId !== activeNetwork.chainId) {
+        try {
+          await switchOrAddEthereumNetwork(activeNetwork);
+          const updatedChainHex = await window.ethereum.request<string>({ method: 'eth_chainId' });
+          if (updatedChainHex) {
+            setChainId(parseInt(updatedChainHex, 16));
+          }
+        } catch {
+          // If user rejects chain switch in MetaMask, wallet remains connected
+          // and isChainMismatch will be true so user is prompted in UI without crashing
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to connect wallet';
@@ -98,14 +119,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (chainHex) {
         const newChainId = parseInt(chainHex, 16);
         setChainId(newChainId);
-        const matched = getNetworkByChainId(newChainId);
-        if (matched) {
-          setNetworkKey(matched.id);
-        }
+        // Do NOT overwrite application networkKey; wallet chain changes must not silently alter the app's target network
       }
     };
 
-    // Check existing connection silently
+    // Check existing connection silently without altering application network
     window.ethereum
       .request<string[]>({ method: 'eth_accounts' })
       .then((accounts) => {
@@ -118,10 +136,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (chainHex) {
           const id = parseInt(chainHex, 16);
           setChainId(id);
-          const matched = getNetworkByChainId(id);
-          if (matched) {
-            setNetworkKey(matched.id);
-          }
         }
       })
       .catch(() => {
@@ -137,6 +151,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const connectedNetwork = chainId ? getNetworkByChainId(chainId) : undefined;
   const isChainMismatch = Boolean(account && chainId && chainId !== activeNetwork.chainId);
   const isUnsupportedChain = Boolean(chainId && !getNetworkByChainId(chainId));
 
@@ -145,6 +160,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         account,
         chainId,
+        connectedNetwork,
         networkKey,
         network: activeNetwork,
         isConnecting,

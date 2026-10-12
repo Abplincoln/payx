@@ -44,7 +44,17 @@ const navConfig: Record<UserRole, NavItem[]> = {
 
 export function DashboardLayout() {
   const { role, setRole } = useRole();
-  const { account, chainId, network, networkKey, switchNetwork, connect, isConnecting, isChainMismatch } = useWallet();
+  const {
+    account,
+    chainId,
+    connectedNetwork,
+    network,
+    networkKey,
+    switchNetwork,
+    connect,
+    isConnecting,
+    isChainMismatch,
+  } = useWallet();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -146,11 +156,11 @@ export function DashboardLayout() {
                   <button
                     type="button"
                     onClick={() => switchNetwork(networkKey)}
-                    title={`Wallet is on Chain ${chainId}. Click to switch to ${network.name} (Chain ${network.chainId})`}
-                    className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md px-2.5 py-1.5 transition-colors cursor-pointer"
+                    title={`Wallet is on ${connectedNetwork ? connectedNetwork.name : 'Chain ' + chainId}. Click to switch to ${network.name} (Chain ${network.chainId})`}
+                    className="flex items-center gap-1.5 text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-md px-2.5 py-1.5 transition-colors cursor-pointer"
                   >
                     <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    <span>Wrong Network ({chainId})</span>
+                    <span>Wrong Network ({connectedNetwork?.name || `Chain ${chainId}`}) · Switch to {network.name}</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
