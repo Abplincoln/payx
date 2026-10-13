@@ -1,20 +1,105 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/State';
+import { EmptyState, LoadingState } from '@/components/ui/State';
 import { PaymentReceipt } from '@/components/PaymentReceipt';
 import { DEMO_BILLS, DEMO_PAYMENTS } from '@/data/mockData';
 import { formatDate, formatBOT } from '@/utils/format';
-import { ArrowLeft, Edit, XCircle, CreditCard, ExternalLink } from 'lucide-react';
+import { useWallet } from '@/context/WalletContext';
+import { fetchBillById, formatContractBill } from '@/lib/contracts';
+import { getExplorerTxUrl } from '@/config/network';
+import type { Bill, Payment } from '@/types';
+import { ArrowLeft, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ethers } from 'ethers';
 
 export function ProviderBillDetails() {
   const { billId } = useParams();
   const navigate = useNavigate();
+  const { network, networkKey } = useWallet();
 
-  const bill = DEMO_BILLS.find((b) => b.id === billId);
-  const payment = bill ? DEMO_PAYMENTS.find((p) => p.billId === bill.id) : null;
+  const [bill, setBill] = useState<Bill | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    if (!billId) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    const match = billId.match(/^PX-0*([1-9]\d*)$/i) || billId.match(/^([1-9]\d*)$/);
+    if (match) {
+      const numericId = BigInt(match[1]);
+      fetchBillById(numericId, network)
+        .then((contractBill) => {
+          if (!active) return;
+          if (contractBill && contractBill.billId > 0n && contractBill.provider !== ethers.ZeroAddress) {
+            const mapped = formatContractBill(contractBill);
+            setBill(mapped);
+
+            if (mapped.status === 'paid') {
+              setPayment({
+                id: `PAY-${mapped.id}`,
+                billId: mapped.id,
+                patientWalletAddress: mapped.patientWalletAddress,
+                providerWalletAddress: mapped.providerWalletAddress,
+                amountBOT: mapped.amountBOT,
+                paymentDate: mapped.paymentDate || mapped.createdDate,
+                transactionHash: mapped.transactionHash || '',
+                network: network.name,
+              });
+            } else {
+              setPayment(null);
+            }
+            setIsLoading(false);
+          } else {
+            handleFallback();
+          }
+        })
+        .catch(() => {
+          if (active) handleFallback();
+        });
+    } else {
+      handleFallback();
+    }
+
+    function handleFallback() {
+      if (!active) return;
+      if (networkKey === 'mainnet') {
+        // On Mainnet, do not display fake demo bills
+        setBill(null);
+        setPayment(null);
+      } else {
+        // Testnet fallback for demo records
+        const demo = DEMO_BILLS.find((b) => b.id.toUpperCase() === billId?.toUpperCase());
+        setBill(demo || null);
+        const demoPay = demo ? DEMO_PAYMENTS.find((p) => p.billId === demo.id) : null;
+        setPayment(demoPay || null);
+      }
+      setIsLoading(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [billId, network, networkKey]);
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="Bill Details" />
+        <Card>
+          <LoadingState title={`Loading bill ${billId} from ${network.name}…`} />
+        </Card>
+      </div>
+    );
+  }
 
   if (!bill) {
     return (
@@ -23,7 +108,7 @@ export function ProviderBillDetails() {
         <Card>
           <EmptyState
             title="Bill not found"
-            description={`No bill found with ID "${billId}".`}
+            description={`No bill found with ID "${billId}" on ${network.name}.`}
             action={
               <Button variant="outline" onClick={() => navigate('/dashboard/provider/bills')}>
                 <ArrowLeft className="h-4 w-4" />
@@ -40,7 +125,7 @@ export function ProviderBillDetails() {
     <div>
       <PageHeader
         title={`Bill ${bill.id}`}
-        description="Full bill details and actions."
+        description={`On-chain record on ${network.name}.`}
         action={
           <Button variant="outline" onClick={() => navigate('/dashboard/provider/bills')}>
             <ArrowLeft className="h-4 w-4" />
@@ -56,8 +141,10 @@ export function ProviderBillDetails() {
             <CardBody>
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Bill ID</span>
-                  <p className="text-lg font-semibold text-gray-900 mt-0.5">{bill.id}</p>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Bill ID
+                  </span>
+                  <p className="text-lg font-semibold text-gray-900 mt-0.5 font-mono">{bill.id}</p>
                 </div>
                 <StatusBadge status={bill.status} />
               </div>
@@ -79,57 +166,45 @@ export function ProviderBillDetails() {
           </Card>
         </div>
 
-        {/* Actions */}
+        {/* Verification & Network Status */}
         <div className="lg:col-span-1">
           <Card>
             <CardBody>
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Actions</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">On-Chain Status</h3>
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <p className="text-gray-500">Network</p>
+                  <p className="font-semibold text-gray-900 mt-0.5">{network.name}</p>
+                  <p className="text-gray-400 mt-0.5">Chain ID: {network.chainId}</p>
+                </div>
 
-              {bill.status === 'pending' || bill.status === 'overdue' ? (
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" disabled>
-                    <Edit className="h-4 w-4" />
-                    Edit Bill
-                  </Button>
-                  <Button variant="danger" className="w-full justify-start" disabled>
-                    <XCircle className="h-4 w-4" />
-                    Cancel Bill
-                  </Button>
-                  <p className="text-xs text-gray-400 pt-2">
-                    Bill management actions require blockchain integration (next stage).
+                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <p className="text-gray-500">Contract Address</p>
+                  <p className="font-mono text-gray-900 mt-0.5 break-all text-[11px]">
+                    {network.contractAddress}
                   </p>
                 </div>
-              ) : bill.status === 'paid' && payment ? (
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate(`/dashboard/provider/payments`)}
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    View Payment
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" disabled>
-                    <ExternalLink className="h-4 w-4" />
-                    View Transaction
-                  </Button>
-                  <p className="text-xs text-gray-400 pt-2">
-                    Transaction explorer link will be available once blockchain integration is added.
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">No actions available for cancelled bills.</p>
-              )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center gap-1.5"
+                  onClick={() => navigate('/verify')}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Public Verification Tool
+                </Button>
+              </div>
             </CardBody>
           </Card>
         </div>
       </div>
 
-      {/* Payment receipt for paid bills */}
+      {/* Payment receipt if paid */}
       {bill.status === 'paid' && payment && (
         <div className="mt-6">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Receipt</h3>
-          <PaymentReceipt payment={payment} billId={bill.id} />
+          <PaymentReceipt payment={payment} billId={bill.id} showDemoLabel={Boolean(payment.transactionHash === '')} />
         </div>
       )}
     </div>

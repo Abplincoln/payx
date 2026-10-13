@@ -132,7 +132,13 @@ export function DashboardLayout() {
             <div className="flex items-center gap-2 ml-2 lg:ml-0">
               <span className="text-sm font-medium text-gray-700">{roleLabel}</span>
               <span className="text-xs text-gray-400">·</span>
-              <span className="text-xs text-gray-400">Demo Mode</span>
+              <span
+                className={`text-xs font-medium ${
+                  networkKey === 'mainnet' ? 'text-emerald-600' : 'text-amber-600'
+                }`}
+              >
+                {networkKey === 'mainnet' ? 'Live Mainnet' : 'Testnet Preview'}
+              </span>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Network badge with click-to-switch */}

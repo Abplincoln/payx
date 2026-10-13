@@ -10,9 +10,11 @@ import { DEMO_BILLS } from '@/data/mockData';
 import type { VerificationResult } from '@/types';
 import { useWallet } from '@/context/WalletContext';
 import { getExplorerTxUrl } from '@/config/network';
+import { fetchBillById } from '@/lib/contracts';
+import { ethers } from 'ethers';
 import { Search, ShieldCheck, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
 
-// DEMO verification result
+// DEMO verification result (testnet only fallback)
 const DEMO_RESULT: VerificationResult = {
   billId: 'PX-0002',
   status: 'paid',
@@ -25,6 +27,7 @@ const DEMO_RESULT: VerificationResult = {
   transactionHash: '0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
   network: 'BotChain Testnet',
   verified: true,
+  isDemo: true,
 };
 
 type State = 'idle' | 'loading' | 'result' | 'notfound';
@@ -36,21 +39,69 @@ export function ProviderVerification() {
   const [state, setState] = useState<State>('idle');
   const [result, setResult] = useState<VerificationResult | null>(null);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!billId.trim()) {
+    const trimmed = billId.trim();
+    if (!trimmed) {
       setError('Bill ID is required');
       return;
     }
     setError(null);
     setState('loading');
 
+    // 1. Try real on-chain query if ID has a numeric component
+    const match = trimmed.match(/^PX-0*([1-9]\d*)$/i) || trimmed.match(/^([1-9]\d*)$/);
+    if (match) {
+      const parsedId = BigInt(match[1]);
+      try {
+        const onChainBill = await fetchBillById(parsedId, network);
+        if (onChainBill && onChainBill.billId > 0n && onChainBill.provider !== ethers.ZeroAddress) {
+          const billStatusMap: Record<number, 'pending' | 'paid' | 'cancelled'> = {
+            0: 'pending',
+            1: 'paid',
+            2: 'cancelled',
+          };
+          const status = billStatusMap[onChainBill.status] || 'pending';
+          const isPaid = status === 'paid';
+          setResult({
+            billId: `PX-${parsedId.toString().padStart(4, '0')}`,
+            status,
+            amountBOT: Number(ethers.formatEther(onChainBill.amount)),
+            providerName: onChainBill.serviceDescription,
+            providerWalletAddress: onChainBill.provider,
+            patientReferenceId: onChainBill.patientReference,
+            patientWalletAddress: onChainBill.patient,
+            paymentDate:
+              onChainBill.paidAt > 0n
+                ? new Date(Number(onChainBill.paidAt) * 1000).toISOString()
+                : null,
+            transactionHash: null,
+            network: network.name,
+            verified: isPaid,
+            isDemo: false,
+          });
+          setState('result');
+          return;
+        }
+      } catch {
+        // Fall through to network check
+      }
+    }
+
+    // 2. On Mainnet, strictly report not found rather than returning simulated demo data
+    if (networkKey === 'mainnet') {
+      setState('notfound');
+      return;
+    }
+
+    // 3. Testnet demo fallback
     setTimeout(() => {
-      const bill = DEMO_BILLS.find((b) => b.id.toUpperCase() === billId.trim().toUpperCase());
+      const bill = DEMO_BILLS.find((b) => b.id.toUpperCase() === trimmed.toUpperCase());
       if (bill && bill.status === 'paid') {
         setResult({
           ...DEMO_RESULT,
           network: network.name,
+          isDemo: true,
         });
         setState('result');
       } else if (bill) {
@@ -65,12 +116,13 @@ export function ProviderVerification() {
           transactionHash: bill.transactionHash,
           network: network.name,
           verified: false,
+          isDemo: true,
         });
         setState('result');
       } else {
         setState('notfound');
       }
-    }, 800);
+    }, 400);
   };
 
   return (

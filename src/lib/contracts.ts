@@ -254,6 +254,22 @@ export function parseWeb3Error(error: unknown): string {
     return 'Transfer to healthcare provider failed.';
   }
 
+  if (rawMsg.includes('ProviderAlreadyRegistered')) {
+    return 'This wallet is already registered as a healthcare provider.';
+  }
+  if (rawMsg.includes('ProviderNotRegistered')) {
+    return 'Healthcare provider registration required before issuing bills.';
+  }
+  if (rawMsg.includes('InvalidPatient')) {
+    return 'Invalid patient wallet address.';
+  }
+  if (rawMsg.includes('InvalidDueDate')) {
+    return 'Due date must be in the future.';
+  }
+  if (rawMsg.includes('InvalidAmount')) {
+    return 'Bill amount must be greater than zero.';
+  }
+
   return rawMsg || 'Transaction failed. Please try again.';
 }
 
@@ -291,5 +307,176 @@ export async function fetchBillById(
     status: Number(raw[7]),
     createdAt: raw[8],
     paidAt: raw[9],
+  };
+}
+
+export interface CreateBillParams {
+  patientReference: string;
+  patient: string;
+  serviceDescription: string;
+  amountBOT: number | string;
+  dueDate: string; // ISO format: YYYY-MM-DD
+}
+
+export interface CreateBillResult {
+  billId: bigint;
+  transactionHash: string;
+  blockNumber: number;
+}
+
+/**
+ * Registers the connected wallet as a healthcare provider on-chain.
+ * Requires explicit user confirmation in MetaMask.
+ */
+export async function registerProviderOnChain(
+  network: NetworkConfig = getActiveNetwork()
+): Promise<{ transactionHash: string; blockNumber: number }> {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask or Web3 wallet is not installed.');
+  }
+
+  const { signer, chainId } = await connectMetaMask(network);
+  if (chainId !== network.chainId) {
+    throw new Error(
+      `Cannot register provider: Connected to Chain ID ${chainId}, but ${network.name} requires Chain ID ${network.chainId}.`
+    );
+  }
+
+  const contract = new ethers.Contract(network.contractAddress, MEDICAL_BILLING_ABI, signer);
+  const tx = await contract.registerProvider();
+  const receipt = await tx.wait();
+
+  if (!receipt || receipt.status === 0) {
+    throw new Error('Provider registration transaction reverted on-chain.');
+  }
+
+  return {
+    transactionHash: receipt.hash,
+    blockNumber: receipt.blockNumber,
+  };
+}
+
+/**
+ * Creates a bill on-chain with strict network verification and parameter formatting.
+ * Requires explicit user confirmation in MetaMask.
+ */
+export async function createBillOnChain(
+  params: CreateBillParams,
+  network: NetworkConfig = getActiveNetwork()
+): Promise<CreateBillResult> {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask or Web3 wallet is not installed.');
+  }
+
+  const { signer, chainId } = await connectMetaMask(network);
+  if (chainId !== network.chainId) {
+    throw new Error(
+      `Cannot create bill: Connected to Chain ID ${chainId}, but ${network.name} requires Chain ID ${network.chainId}.`
+    );
+  }
+
+  const amountWei = ethers.parseEther(String(params.amountBOT));
+  const dueDateTimestamp = Math.floor(new Date(`${params.dueDate}T23:59:59Z`).getTime() / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  if (dueDateTimestamp <= now) {
+    throw new Error('Due date must be in the future.');
+  }
+
+  const contract = new ethers.Contract(network.contractAddress, MEDICAL_BILLING_ABI, signer);
+  const tx = await contract.createBill(
+    params.patientReference.trim(),
+    ethers.getAddress(params.patient.trim()),
+    params.serviceDescription.trim(),
+    amountWei,
+    dueDateTimestamp
+  );
+  const receipt = await tx.wait();
+
+  if (!receipt || receipt.status === 0) {
+    throw new Error('Bill creation transaction reverted on-chain.');
+  }
+
+  let createdBillId = 0n;
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contract.interface.parseLog(log);
+      if (parsed && parsed.name === 'BillCreated') {
+        createdBillId = parsed.args.billId;
+        break;
+      }
+    } catch {
+      // Ignore unparsed logs
+    }
+  }
+
+  return {
+    billId: createdBillId,
+    transactionHash: receipt.hash,
+    blockNumber: receipt.blockNumber,
+  };
+}
+
+/**
+ * Fetches all on-chain bills issued by a provider.
+ */
+export async function fetchProviderBills(
+  providerAddress: string,
+  network: NetworkConfig = getActiveNetwork()
+): Promise<ContractBillData[]> {
+  const contract = getReadOnlyContract(network);
+  const billIds: bigint[] = await contract.getProviderBills(providerAddress);
+  const bills = await Promise.all(
+    billIds.map((id) => fetchBillById(id, network))
+  );
+  return bills.sort((a, b) => (b.billId > a.billId ? 1 : -1));
+}
+
+/**
+ * Converts contract bill representation into UI Bill object.
+ */
+export function formatContractBill(bill: ContractBillData): {
+  id: string;
+  patientReferenceId: string;
+  patientWalletAddress: string;
+  providerId: string;
+  providerName: string;
+  providerWalletAddress: string;
+  serviceDescription: string;
+  amountBOT: number;
+  dueDate: string;
+  createdDate: string;
+  paymentDate: string | null;
+  status: 'pending' | 'paid' | 'cancelled' | 'overdue';
+  transactionHash: string | null;
+} {
+  const statusMap: Record<number, 'pending' | 'paid' | 'cancelled'> = {
+    0: 'pending',
+    1: 'paid',
+    2: 'cancelled',
+  };
+  let status: 'pending' | 'paid' | 'cancelled' | 'overdue' = statusMap[bill.status] || 'pending';
+  const now = Math.floor(Date.now() / 1000);
+  if (status === 'pending' && Number(bill.dueDate) < now) {
+    status = 'overdue';
+  }
+
+  const dueDateIso = new Date(Number(bill.dueDate) * 1000).toISOString().split('T')[0];
+  const createdDateIso = new Date(Number(bill.createdAt) * 1000).toISOString().split('T')[0];
+  const paymentDateIso = bill.paidAt > 0n ? new Date(Number(bill.paidAt) * 1000).toISOString().split('T')[0] : null;
+
+  return {
+    id: `PX-${bill.billId.toString().padStart(4, '0')}`,
+    patientReferenceId: bill.patientReference,
+    patientWalletAddress: bill.patient,
+    providerId: bill.provider.slice(0, 8),
+    providerName: bill.serviceDescription,
+    providerWalletAddress: bill.provider,
+    serviceDescription: bill.serviceDescription,
+    amountBOT: Number(ethers.formatEther(bill.amount)),
+    dueDate: dueDateIso,
+    createdDate: createdDateIso,
+    paymentDate: paymentDateIso,
+    status,
+    transactionHash: null,
   };
 }
