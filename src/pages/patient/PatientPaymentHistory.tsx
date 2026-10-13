@@ -1,28 +1,114 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/State';
+import { EmptyState, LoadingState } from '@/components/ui/State';
 import { Button } from '@/components/ui/Button';
+import { useWallet } from '@/context/WalletContext';
+import { fetchPatientBills, formatContractBill } from '@/lib/contracts';
 import { DEMO_PAYMENTS, DEMO_PATIENT } from '@/data/mockData';
 import { formatDate, formatBOT, formatTxHash } from '@/utils/format';
-import { Eye, Inbox } from 'lucide-react';
+import type { Payment } from '@/types';
+import { Eye, Inbox, Wallet, AlertTriangle } from 'lucide-react';
 
 export function PatientPaymentHistory() {
   const navigate = useNavigate();
+  const { account, chainId, network, networkKey, connect, switchNetwork, isConnecting, isChainMismatch } =
+    useWallet();
 
-  const payments = DEMO_PAYMENTS.filter(
-    (p) => p.patientWalletAddress === DEMO_PATIENT.walletAddress
-  );
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!account) {
+      setPayments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    fetchPatientBills(account, network)
+      .then((contractBills) => {
+        if (active) {
+          const paidBills = contractBills.filter((b) => Number(b.status) === 1);
+          const mappedPayments: Payment[] = paidBills.map((b) => {
+            const uiBill = formatContractBill(b);
+            return {
+              id: `PAY-${uiBill.id}`,
+              billId: uiBill.id,
+              patientWalletAddress: uiBill.patientWalletAddress,
+              providerWalletAddress: uiBill.providerWalletAddress,
+              amountBOT: uiBill.amountBOT,
+              paymentDate: uiBill.paymentDate || uiBill.createdDate,
+              transactionHash: uiBill.transactionHash || '',
+              network: network.name,
+            };
+          });
+          setPayments(mappedPayments);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error('Failed to load patient payment history:', err);
+          if (networkKey === 'mainnet') {
+            setPayments([]);
+          } else {
+            const demo = DEMO_PAYMENTS.filter(
+              (p) => p.patientWalletAddress === DEMO_PATIENT.walletAddress
+            );
+            setPayments(demo);
+          }
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [account, network, networkKey]);
 
   return (
     <div>
       <PageHeader
         title="Payment History"
-        description="All payments you have made."
+        description={`All confirmed payments made by your wallet on ${network.name}.`}
       />
 
+      {isChainMismatch && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2 text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              Wallet connected to Chain ID {chainId}. Please switch to {network.name} (Chain ID {network.chainId}) to view your payment history.
+            </span>
+          </div>
+          <Button size="sm" onClick={() => switchNetwork(networkKey)} className="shrink-0">
+            Switch to {network.name}
+          </Button>
+        </div>
+      )}
+
       <Card>
-        {payments.length > 0 ? (
+        {!account ? (
+          <EmptyState
+            icon={<Wallet className="h-10 w-10 text-primary-500" />}
+            title="Connect Wallet"
+            description={`Connect your Web3 wallet to load your payment history on ${network.name}.`}
+            action={
+              <Button onClick={connect} disabled={isConnecting}>
+                <Wallet className="h-4 w-4" />
+                {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+              </Button>
+            }
+          />
+        ) : isLoading ? (
+          <LoadingState
+            title={`Loading payment history from ${network.name}…`}
+          />
+        ) : payments.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -49,7 +135,7 @@ export function PatientPaymentHistory() {
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(payment.paymentDate)}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap font-mono text-xs">
-                      {formatTxHash(payment.transactionHash)}
+                      {payment.transactionHash ? formatTxHash(payment.transactionHash) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <Button
@@ -68,9 +154,9 @@ export function PatientPaymentHistory() {
           </div>
         ) : (
           <EmptyState
-            icon={<Inbox className="h-10 w-10" />}
-            title="No payment history"
-            description="Your past payments will appear here once you start paying bills."
+            icon={<Inbox className="h-10 w-10 text-gray-400" />}
+            title={`No payment history on ${network.name}`}
+            description={`Your past payments will appear here once you pay bills on ${network.name}.`}
           />
         )}
       </Card>

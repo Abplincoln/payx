@@ -3,11 +3,14 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { DEMO_PATIENT } from '@/data/mockData';
 import { formatWallet } from '@/utils/format';
+import { useWallet } from '@/context/WalletContext';
 
 export function PatientSettings() {
+  const { account, network } = useWallet();
+
   return (
     <div>
-      <PageHeader title="Settings" description="Manage your patient profile." />
+      <PageHeader title="Settings" description={`Manage your patient profile on ${network.name}.`} />
 
       <div className="max-w-2xl space-y-6">
         <Card>
@@ -29,13 +32,13 @@ export function PatientSettings() {
               <Input
                 label="Wallet Address"
                 name="walletAddress"
-                defaultValue={DEMO_PATIENT.walletAddress}
+                value={account || DEMO_PATIENT.walletAddress}
                 disabled
-                hint={`Connected wallet: ${formatWallet(DEMO_PATIENT.walletAddress)}`}
+                hint={account ? `Connected wallet on ${network.name}: ${formatWallet(account)}` : 'Connect your wallet in the header to manage your profile.'}
               />
             </div>
             <p className="mt-4 text-xs text-gray-400">
-              Profile editing and wallet connection will be available once blockchain integration is added.
+              Patient profiles are linked directly to your connected Web3 wallet address.
             </p>
           </CardBody>
         </Card>

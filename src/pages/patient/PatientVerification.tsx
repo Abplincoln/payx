@@ -10,6 +10,8 @@ import { DEMO_BILLS, DEMO_PATIENT } from '@/data/mockData';
 import type { VerificationResult } from '@/types';
 import { useWallet } from '@/context/WalletContext';
 import { getExplorerTxUrl } from '@/config/network';
+import { fetchBillById } from '@/lib/contracts';
+import { ethers } from 'ethers';
 import { Search, ShieldCheck, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
 
 type State = 'idle' | 'loading' | 'result' | 'notfound';
@@ -21,19 +23,66 @@ export function PatientVerification() {
   const [state, setState] = useState<State>('idle');
   const [result, setResult] = useState<VerificationResult | null>(null);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!billId.trim()) {
+    const trimmed = billId.trim();
+    if (!trimmed) {
       setError('Bill ID is required');
       return;
     }
     setError(null);
     setState('loading');
 
+    // 1. Try real on-chain query if ID has a numeric component
+    const match = trimmed.match(/^PX-0*([1-9]\d*)$/i) || trimmed.match(/^([1-9]\d*)$/);
+    if (match) {
+      const parsedId = BigInt(match[1]);
+      try {
+        const onChainBill = await fetchBillById(parsedId, network);
+        if (onChainBill && onChainBill.billId > 0n && onChainBill.provider !== ethers.ZeroAddress) {
+          const billStatusMap: Record<number, 'pending' | 'paid' | 'cancelled'> = {
+            0: 'pending',
+            1: 'paid',
+            2: 'cancelled',
+          };
+          const status = billStatusMap[onChainBill.status] || 'pending';
+          const isPaid = status === 'paid';
+          setResult({
+            billId: `PX-${parsedId.toString().padStart(4, '0')}`,
+            status,
+            amountBOT: Number(ethers.formatEther(onChainBill.amount)),
+            providerName: onChainBill.serviceDescription,
+            providerWalletAddress: onChainBill.provider,
+            patientReferenceId: onChainBill.patientReference,
+            patientWalletAddress: onChainBill.patient,
+            paymentDate:
+              onChainBill.paidAt > 0n
+                ? new Date(Number(onChainBill.paidAt) * 1000).toISOString()
+                : null,
+            transactionHash: null,
+            network: network.name,
+            verified: isPaid,
+            isDemo: false,
+          });
+          setState('result');
+          return;
+        }
+      } catch {
+        // Fall through to network check
+      }
+    }
+
+    // 2. On Mainnet, strictly report not found rather than returning simulated demo data
+    if (networkKey === 'mainnet') {
+      setState('notfound');
+      return;
+    }
+
+    // 3. Testnet demo fallback
     setTimeout(() => {
       const bill = DEMO_BILLS.find(
         (b) =>
-          b.id.toUpperCase() === billId.trim().toUpperCase() &&
+          b.id.toUpperCase() === trimmed.toUpperCase() &&
           b.patientReferenceId === DEMO_PATIENT.referenceId
       );
       if (bill && bill.status === 'paid') {
@@ -49,6 +98,7 @@ export function PatientVerification() {
           transactionHash: bill.transactionHash,
           network: network.name,
           verified: true,
+          isDemo: true,
         });
         setState('result');
       } else if (bill) {
@@ -64,19 +114,20 @@ export function PatientVerification() {
           transactionHash: bill.transactionHash,
           network: network.name,
           verified: false,
+          isDemo: true,
         });
         setState('result');
       } else {
         setState('notfound');
       }
-    }, 800);
+    }, 400);
   };
 
   return (
     <div>
       <PageHeader
         title="Verification"
-        description={`Verify the payment status of your bills on ${network.name}.`}
+        description={`Verify the payment status of bills on ${network.name}.`}
       />
 
       <Card className="max-w-2xl">
@@ -85,7 +136,7 @@ export function PatientVerification() {
             <div className="flex-1">
               <Input
                 name="billId"
-                placeholder="Enter Bill ID (e.g. PX-0002)"
+                placeholder="Enter Bill ID (e.g. PX-0001)"
                 value={billId}
                 onChange={(e) => {
                   setBillId(e.target.value);
@@ -124,7 +175,7 @@ export function PatientVerification() {
             <EmptyState
               icon={<FileText className="h-10 w-10" />}
               title="Bill not found"
-              description={`No bill found with ID "${billId}".`}
+              description={`No bill found with ID "${billId}" on ${network.name}.`}
             />
           </Card>
         )}
@@ -160,17 +211,19 @@ export function PatientVerification() {
             </div>
 
             <div className="px-6 py-5">
-              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
-                <p className="text-xs text-amber-700 font-medium">
-                  Demo data — not an actual on-chain verification
-                </p>
-              </div>
+              {result.isDemo && (
+                <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+                  <p className="text-xs text-amber-700 font-medium">
+                    Demo data — not an actual on-chain verification
+                  </p>
+                </div>
+              )}
 
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <Field label="Bill ID" value={result.billId} />
                 <Field label="Status" value={<StatusBadge status={result.status} size="sm" />} />
                 <Field label="Amount" value={formatBOT(result.amountBOT)} />
-                <Field label="Provider" value={result.providerName} />
+                <Field label="Service / Provider" value={result.providerName} />
                 <Field
                   label="Payment Date"
                   value={result.paymentDate ? formatDate(result.paymentDate) : '—'}

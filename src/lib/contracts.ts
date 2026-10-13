@@ -432,6 +432,22 @@ export async function fetchProviderBills(
 }
 
 /**
+ * Fetches all on-chain bills issued to a patient.
+ */
+export async function fetchPatientBills(
+  patientAddress: string,
+  network: NetworkConfig = getActiveNetwork()
+): Promise<ContractBillData[]> {
+  const contract = getReadOnlyContract(network);
+  const cleanAddress = ethers.getAddress(patientAddress.trim());
+  const billIds: bigint[] = await contract.getPatientBills(cleanAddress);
+  const bills = await Promise.all(
+    billIds.map((id) => fetchBillById(id, network))
+  );
+  return bills.sort((a, b) => (b.billId > a.billId ? 1 : -1));
+}
+
+/**
  * Converts contract bill representation into UI Bill object.
  */
 export function formatContractBill(bill: ContractBillData): {
@@ -469,7 +485,7 @@ export function formatContractBill(bill: ContractBillData): {
     patientReferenceId: bill.patientReference,
     patientWalletAddress: bill.patient,
     providerId: bill.provider.slice(0, 8),
-    providerName: bill.serviceDescription,
+    providerName: `${bill.provider.slice(0, 6)}…${bill.provider.slice(-4)}`,
     providerWalletAddress: bill.provider,
     serviceDescription: bill.serviceDescription,
     amountBOT: Number(ethers.formatEther(bill.amount)),
