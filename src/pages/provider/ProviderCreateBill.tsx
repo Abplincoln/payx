@@ -121,8 +121,8 @@ export function ProviderCreateBill() {
     newErrors.amountBOT = validateField(form.amountBOT, [
       { required: true, message: 'Amount is required' },
       {
-        validator: (v) => parseFloat(v) > 0,
-        message: 'Amount must be greater than zero',
+        validator: (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0.001,
+        message: 'Amount must be at least 0.001 BOT',
       },
     ]) ?? undefined;
 
@@ -472,9 +472,9 @@ export function ProviderCreateBill() {
                 label="Amount (BOT)"
                 name="amountBOT"
                 type="number"
-                step="0.01"
-                min="0"
-                placeholder="e.g. 25"
+                step="0.001"
+                min="0.001"
+                placeholder="e.g. 0.001 or 25"
                 value={form.amountBOT}
                 onChange={(e) => update('amountBOT', e.target.value)}
                 error={errors.amountBOT}

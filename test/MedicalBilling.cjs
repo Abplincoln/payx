@@ -154,6 +154,24 @@ describe("MedicalBilling", function () {
       ).to.be.revertedWithCustomError(contract, "InvalidAmount");
     });
 
+    it("should allow creating a small bill with 0.001 BOT (1e15 wei)", async function () {
+      const { contract, provider, patient, FUTURE_DUE_DATE } = await loadFixture(deployFixture);
+
+      await contract.connect(provider).registerProvider();
+
+      const smallAmount = ethers.parseEther("0.001");
+      await contract.connect(provider).createBill(
+        "PAT-001",
+        patient.address,
+        "Micro Consultation",
+        smallAmount,
+        FUTURE_DUE_DATE
+      );
+
+      const bill = await contract.getBill(1);
+      expect(bill.amount).to.equal(smallAmount);
+    });
+
     it("should revert if due date is not in the future", async function () {
       const { contract, provider, patient } = await loadFixture(deployFixture);
 
@@ -325,6 +343,28 @@ describe("MedicalBilling", function () {
 
       const bill = await contract.getBill(1);
       expect(bill.status).to.equal(1); // BillStatus.Paid
+    });
+
+    it("should allow paying a small bill of 0.001 BOT", async function () {
+      const { contract, provider, patient, FUTURE_DUE_DATE } = await loadFixture(deployFixture);
+
+      await contract.connect(provider).registerProvider();
+
+      const smallAmount = ethers.parseEther("0.001");
+      await contract.connect(provider).createBill(
+        "PAT-001",
+        patient.address,
+        "Micro Consultation",
+        smallAmount,
+        FUTURE_DUE_DATE
+      );
+
+      await expect(
+        contract.connect(patient).payBill(1, { value: smallAmount })
+      ).to.emit(contract, "BillPaid");
+
+      const bill = await contract.getBill(1);
+      expect(bill.status).to.equal(1); // Paid
     });
 
     it("should transfer the payment to the provider", async function () {

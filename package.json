@@ -4,15 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node api.js && vite",
+    "build": "node api.js && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test:contracts": "hardhat test",
     "deploy:testnet": "hardhat run scripts/deploy.cjs --network botchain",
     "deploy:mainnet": "hardhat run scripts/deploy-mainnet.cjs --network botchainMainnet"
-
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

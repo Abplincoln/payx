@@ -1,5 +1,5 @@
 export function formatBOT(amount: number): string {
-  return `${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} BOT`;
+  return `${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 4 })} BOT`;
 }
 
 export function formatDate(dateStr: string): string {
