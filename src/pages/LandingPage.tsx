@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { HeartPulse, ShieldCheck, ArrowRight, FileText, Search, Wallet, CheckCircle2 } from 'lucide-react';
+import { HeartPulse, ShieldCheck, ArrowRight, FileText, Search, Wallet, CheckCircle2, ExternalLink } from 'lucide-react';
 import { useRole } from '@/context/RoleContext';
 import { useWallet } from '@/context/WalletContext';
 import { Button } from '@/components/ui/Button';
@@ -25,13 +25,21 @@ export function LandingPage() {
             </div>
             <span className="text-lg font-bold text-gray-900 tracking-tight">PayX</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
-            <span
-              className={`inline-block w-2 h-2 rounded-full ${
-                networkKey === 'mainnet' ? 'bg-success-500' : 'bg-accent-500'
-              }`}
-            />
-            {network.name}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/verify')}
+              className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Verify Bill
+            </button>
+            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5">
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${
+                  networkKey === 'mainnet' ? 'bg-success-500' : 'bg-accent-500'
+                }`}
+              />
+              {network.name}
+            </div>
           </div>
         </div>
       </nav>
@@ -41,14 +49,14 @@ export function LandingPage() {
         <div className="max-w-2xl">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-3 py-1">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Blockchain-verified billing
+            Blockchain-verified billing on BOT Chain
           </span>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight leading-tight">
             Medical billing and payment, verified on-chain.
           </h1>
           <p className="mt-4 text-base text-gray-600 leading-relaxed">
             Create, manage, and verify medical bill payments with transparent blockchain records.
-            PayX connects healthcare providers and patients through a secure, auditable payment flow.
+            PayX connects healthcare providers and patients through a secure, auditable payment flow powered by BOT Chain.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -92,22 +100,90 @@ export function LandingPage() {
             <Step
               number="4"
               icon={CheckCircle2}
-              title="Payment is verified on BotChain"
+              title="Payment is verified on BOT Chain"
               description="The transaction is recorded on-chain and can be publicly verified."
             />
           </div>
         </div>
       </section>
 
+      {/* Verification & Transparency */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-6 sm:p-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary-700">
+                <ShieldCheck className="h-4 w-4" />
+                Verification &amp; Transparency
+              </span>
+              <h2 className="mt-2 text-xl font-bold text-gray-900">
+                Blockchain Infrastructure
+              </h2>
+              <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                PayX is deployed on BOT Chain, enabling on-chain medical billing and payment verification.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm font-medium">
+                <a
+                  href="https://botchain.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 underline underline-offset-4"
+                >
+                  BOT Chain
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <span className="text-gray-300">•</span>
+                <a
+                  href="https://scan.botchain.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 underline underline-offset-4"
+                >
+                  BOT Chain Explorer
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center">
+              <Button variant="outline" onClick={() => navigate('/verify')}>
+                <Search className="h-4 w-4" />
+                Verify a Bill
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Disclaimer */}
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-8 border-t border-gray-100">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-xs text-gray-700 leading-relaxed">
             <strong>Network:</strong> Connected to <strong>{network.name}</strong> (Chain ID: {network.chainId}).
           </p>
+          <div className="flex items-center gap-3 text-xs">
+            <a
+              href="https://botchain.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:underline font-medium inline-flex items-center gap-1"
+            >
+              BOT Chain
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <span className="text-gray-300">•</span>
+            <a
+              href="https://scan.botchain.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:underline font-medium inline-flex items-center gap-1"
+            >
+              BOT Chain Explorer
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </div>
         <p className="mt-4 text-center text-xs text-gray-400">
-          PayX — Medical billing and payment, verified on-chain. Built on {network.name}.
+          PayX is deployed on BOT Chain, enabling on-chain medical billing and payment verification.
         </p>
       </footer>
     </div>

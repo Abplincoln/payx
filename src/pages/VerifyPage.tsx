@@ -130,9 +130,34 @@ export function VerifyPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Public Bill Verification</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Enter a bill ID to verify its payment status on {network.name}.
+          <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+            PayX is deployed on BOT Chain, enabling on-chain medical billing and payment verification.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+            <a
+              href="https://botchain.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:underline font-medium inline-flex items-center gap-1"
+            >
+              BOT Chain
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <span className="text-gray-300">•</span>
+            <a
+              href="https://scan.botchain.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:underline font-medium inline-flex items-center gap-1"
+            >
+              BOT Chain Explorer
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <span className="text-gray-300">•</span>
+            <span className="text-gray-500">
+              Active Network: <strong>{network.name}</strong>
+            </span>
+          </div>
         </div>
 
         {/* Search form */}
@@ -173,7 +198,7 @@ export function VerifyPage() {
               <EmptyState
                 icon={<Search className="h-10 w-10" />}
                 title="No verification performed yet"
-                description="Enter a bill ID above and click Verify Bill to check its payment status."
+                description="Enter a bill ID above and click Verify Bill to check its payment status on BOT Chain."
               />
             </Card>
           )}
@@ -270,6 +295,10 @@ export function VerifyPage() {
             </div>
           )}
         </div>
+
+        <p className="mt-8 text-center text-xs text-gray-400">
+          PayX is deployed on BOT Chain, enabling on-chain medical billing and payment verification.
+        </p>
       </div>
     </div>
   );
