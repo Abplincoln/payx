@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { HeartPulse, ShieldCheck, ArrowRight, FileText, Search, Wallet, CheckCircle2, ExternalLink } from 'lucide-react';
 import { useRole } from '@/context/RoleContext';
 import { useWallet } from '@/context/WalletContext';
@@ -19,12 +19,12 @@ export function LandingPage() {
       {/* Nav */}
       <nav className="border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity" aria-label="PayX Homepage">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600">
               <HeartPulse className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold text-gray-900 tracking-tight">PayX</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/verify')}
@@ -156,6 +156,22 @@ export function LandingPage() {
 
       {/* Disclaimer */}
       <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-8 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
+            aria-label="PayX Homepage"
+          >
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-600">
+              <HeartPulse className="h-4.5 w-4.5 text-white" />
+            </div>
+            <span className="text-base font-bold text-gray-900 tracking-tight">PayX</span>
+          </Link>
+          <p className="text-xs text-gray-500">
+            Medical billing and payment, verified on-chain.
+          </p>
+        </div>
+
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-xs text-gray-700 leading-relaxed">
             <strong>Network:</strong> Connected to <strong>{network.name}</strong> (Chain ID: {network.chainId}).
